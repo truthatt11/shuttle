@@ -15,6 +15,49 @@ A simple shortcut menu for macOS
 1. Download [Shuttle](http://fitztrev.github.io/shuttle/)
 2. Copy to Applications
 
+## Ghostty support
+
+This fork adds support for using [Ghostty](https://ghostty.org/) as the terminal launched by Shuttle.
+
+### What changed
+
+* Added `Ghostty.app` as a valid value for the top-level `terminal` setting.
+* Added bundled AppleScript handlers for Ghostty:
+  * new window
+  * current window
+  * new tab
+* Added the Ghostty Apple Events entitlement, `com.mitchellh.ghostty`.
+* Fixed command launching on newer macOS versions by only treating strings with a URL scheme as URLs. Shell commands such as `ssh user@host` and custom commands such as `ssh-server ...` now continue through the terminal launcher instead of being passed to Finder as invalid URLs.
+
+### Configuration
+
+Set `terminal` to `Ghostty.app` in `~/.shuttle.json`:
+
+```json
+{
+  "terminal": "Ghostty.app",
+  "open_in": "new"
+}
+```
+
+`open_in` continues to support Shuttle's existing values:
+
+* `new` opens a new Ghostty window.
+* `tab` opens a new tab in the front Ghostty window, or creates a window if none exists.
+* `current` runs the command in the focused terminal of the front Ghostty window, or creates a window if none exists.
+
+Per-host `inTerminal` overrides still work the same way:
+
+```json
+{
+  "name": "Example server",
+  "cmd": "ssh user@example.com",
+  "inTerminal": "tab"
+}
+```
+
+Ghostty support requires Ghostty 1.3.0 or newer because it relies on Ghostty's macOS AppleScript API. The first time Shuttle controls Ghostty, macOS may ask for Automation permission; allow Shuttle to control Ghostty.
+
 ## Help
 See the [Wiki](https://github.com/fitztrev/shuttle/wiki) pages. 
 
