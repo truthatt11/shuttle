@@ -745,7 +745,7 @@
     if (!scheme) return NO;
 
     // Only allow standard protocols
-    NSArray *validSchemes = @[@"http", @"https", @"ftp", @"file", @"ssh", @"telnet"];
+    NSArray *validSchemes = @[@"http", @"https", @"ftp", @"file", @"ssh", @"telnet", @"vnc"];
     return [validSchemes containsObject:scheme.lowercaseString];
 }
 
