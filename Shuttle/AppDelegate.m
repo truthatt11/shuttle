@@ -70,11 +70,12 @@
     // Create the status bar item
     statusItem = [[NSStatusBar systemStatusBar] statusItemWithLength:NSSquareStatusItemLength];
     [statusItem setMenu:menu];
-    [statusItem setImage: regularIcon];
     
     // Modern macOS versions (10.10+) support dynamic icons
-    // Since we now require 10.15+, we can always use template images
+    // Since we now require macOS 13+, we can always use template images.
+    // Mark it as a template before handing it to the button so it renders for light/dark menu bars.
     regularIcon.template = YES;
+    statusItem.button.image = regularIcon;
     
     launchAtLoginController = [[LaunchAtLoginController alloc] init];
     // Needed to trigger the menuWillOpen event
@@ -752,16 +753,20 @@
     NSAlert *alert = [[NSAlert alloc] init];
     [alert setMessageText:NSLocalizedString(@"Shuttle could not run the command",nil)];
     [alert setInformativeText:details];
-    [alert setAlertStyle:NSWarningAlertStyle];
+    [alert setAlertStyle:NSAlertStyleWarning];
     //Shuttle is a menu bar app, so bring the alert to the front
-    [NSApp activateIgnoringOtherApps:YES];
+    if (@available(macOS 14.0, *)) {
+        [NSApp activate];
+    } else {
+        [NSApp activateIgnoringOtherApps:YES];
+    }
     [alert runModal];
 }
 
 - (IBAction)showImportPanel:(id)sender {
     NSOpenPanel * openPanelObj	= [NSOpenPanel openPanel];
     NSInteger tvarNSInteger	= [openPanelObj runModal];
-    if(tvarNSInteger == NSOKButton){
+    if(tvarNSInteger == NSModalResponseOK){
         //Backup the current configuration
         [[NSFileManager defaultManager] moveItemAtPath:shuttleConfigFile toPath: [NSHomeDirectory() stringByAppendingPathComponent:@".shuttle.json.backup"] error: nil];
         
@@ -794,7 +799,7 @@
     NSAlert *alert = [[NSAlert alloc] init];
     [alert setInformativeText:errorInfo];
     [alert setMessageText:errorMessage];
-    [alert setAlertStyle:NSWarningAlertStyle];
+    [alert setAlertStyle:NSAlertStyleWarning];
     
     if (continueOption) {
         [alert addButtonWithTitle:NSLocalizedString(@"Quit",nil)];
@@ -813,7 +818,7 @@
     NSSavePanel * savePanelObj	= [NSSavePanel savePanel];
     //Display the Save Panel
     NSInteger result	= [savePanelObj runModal];
-    if (result == NSFileHandlingPanelOKButton) {
+    if (result == NSModalResponseOK) {
         NSURL *saveURL = [savePanelObj URL];
         // then copy a previous file to the new location
         [[NSFileManager defaultManager] copyItemAtPath:shuttleConfigFile toPath:saveURL.path error:nil];
@@ -825,7 +830,7 @@
     //if the editor setting is omitted or contains 'default' open using the default editor.
     if([editorPref rangeOfString:@"default"].location != NSNotFound) {
         
-        [[NSWorkspace sharedWorkspace] openFile:shuttleConfigFile];
+        [[NSWorkspace sharedWorkspace] openURL:[NSURL fileURLWithPath:shuttleConfigFile]];
     }
     else{
         //build the editor command
