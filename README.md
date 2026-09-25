@@ -15,6 +15,8 @@ A simple shortcut menu for macOS
 1. Download [Shuttle](http://fitztrev.github.io/shuttle/)
 2. Copy to Applications
 
+This fork also supports Ghostty.app. Set `"terminal": "Ghostty.app"` in your Shuttle JSON settings to use it.
+
 ## Help
 See the [Wiki](https://github.com/fitztrev/shuttle/wiki) pages. 
 
