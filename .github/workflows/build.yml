@@ -1,0 +1,77 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run tests
+        run: |
+          for test in tests/test_*.py; do
+            echo "== $test"
+            python3 "$test"
+          done
+
+      - name: Build universal app
+        run: |
+          xcodebuild -version
+          xcodebuild -project Shuttle.xcodeproj -target Shuttle -configuration Release \
+            ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            SYMROOT="$PWD/build" \
+            build
+
+      # Ad-hoc signature ("-"): no Apple Developer account needed. Apple silicon requires
+      # every binary to be signed, but Gatekeeper will still quarantine a downloaded copy.
+      - name: Ad-hoc sign
+        run: |
+          app=build/Release/Shuttle.app
+          codesign --force --sign - --entitlements Shuttle/Shuttle.entitlements "$app"
+          codesign --verify --strict --verbose=2 "$app"
+          codesign --display --entitlements - "$app"
+          archs=$(lipo -archs "$app/Contents/MacOS/Shuttle")
+          echo "Architectures: $archs"
+          [[ "$archs" == *arm64* && "$archs" == *x86_64* ]]
+
+      - name: Package
+        run: ditto -c -k --keepParent build/Release/Shuttle.app Shuttle.zip
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Shuttle
+          path: Shuttle.zip
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: Shuttle
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" Shuttle.zip \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Shuttle $GITHUB_REF_NAME" \
+            --notes "Universal (Apple silicon + Intel) build, ad-hoc signed and not notarized.
+
+          macOS will block it the first time you open it. Either run
+          \`xattr -d com.apple.quarantine /Applications/Shuttle.app\` after copying it to Applications,
+          or open it once and allow it in System Settings > Privacy & Security > Open Anyway."

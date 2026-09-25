@@ -17,6 +17,11 @@ A simple shortcut menu for macOS
 
 This fork also supports Ghostty.app. Set `"terminal": "Ghostty.app"` in your Shuttle JSON settings to use it.
 
+### Builds from this fork
+
+GitHub Actions builds a universal (Apple silicon + Intel) `Shuttle.app` for every push and pull request; download `Shuttle.zip` from the run's artifacts, or from [Releases](../../releases) for tagged versions (`v*`).
+These builds are ad-hoc signed, not notarized, so macOS blocks them the first time. After copying Shuttle to Applications, either run `xattr -d com.apple.quarantine /Applications/Shuttle.app`, or open it once and choose **Open Anyway** in System Settings > Privacy & Security.
+
 ## Help
 See the [Wiki](https://github.com/fitztrev/shuttle/wiki) pages. 
 

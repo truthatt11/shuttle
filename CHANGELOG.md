@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Apple silicon (arm64) support and Ghostty.app support
 - Launch at login now uses `SMAppService`; the old `LSSharedFileList` login item API no longer has any effect on current macOS
 - Minimum supported macOS is now 13.0 (Xcode 27 no longer supports deploying to macOS 10.15)
+- GitHub Actions builds an ad-hoc signed universal app on every push/PR and publishes it as a release for `v*` tags
 
 ## [1.2.9] - 2016-10-18
 ### Added
