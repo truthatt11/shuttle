@@ -6,9 +6,6 @@
 #import "AppDelegate.h"
 #import "AboutWindowController.h"
 
-// Add version detection macro for macOS compatibility
-#define SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(v)  ([[[NSProcessInfo processInfo] operatingSystemVersion] compare:v options:NSNumericSearch] != NSOrderedAscending)
-
 @implementation AppDelegate
 
 - (void) awakeFromNib {
@@ -735,26 +732,7 @@
     
 }
 
-// New: Simplified permission check - relies on system prompts
-- (BOOL)checkAppleEventsPermission {
-    // In macOS 10.15+, system will automatically prompt permissions, return YES
-    return YES;
-}
-
-// New: Simplified permission request - provide user guidance
-- (void)requestAppleEventsPermission {
-    NSAlert *alert = [[NSAlert alloc] init];
-    [alert setMessageText:@"Permission Required"];
-    [alert setInformativeText:@"Shuttle requires Accessibility permissions to control terminal applications. Please go to System Preferences → Security & Privacy → Accessibility, add and enable Shuttle."];
-    [alert addButtonWithTitle:@"Open System Preferences"];
-    [alert addButtonWithTitle:@"Later"];
-
-    if ([alert runModal] == NSAlertFirstButtonReturn) {
-        [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"]];
-    }
-}
-
-// New: Enhanced URL validation
+// Only schemes in this allowlist are opened via NSWorkspace
 - (BOOL)isValidURL:(NSString *)string {
     NSURL *url = [NSURL URLWithString:string];
     if (!url) return NO;
