@@ -214,10 +214,14 @@
     
     // Parse the config file
     NSData *data = [NSData dataWithContentsOfFile:shuttleConfigFile];
-    id json = [NSJSONSerialization JSONObjectWithData:data
-                                              options:NSJSONReadingMutableContainers
-                                                error:nil];
-    // Check valid JSON syntax
+    // NSJSONSerialization throws on nil data, so a missing file must be checked first
+    id json = nil;
+    if (data) {
+        json = [NSJSONSerialization JSONObjectWithData:data
+                                               options:NSJSONReadingMutableContainers
+                                                 error:nil];
+    }
+    // Check the file was readable and has valid JSON syntax
     if ( !json ) {
         NSMenuItem *menuItem = [menu insertItemWithTitle:NSLocalizedString(@"Error parsing config",nil)
                                                   action:false
@@ -228,7 +232,10 @@
         return;
     }
     
-    terminalPref = [json[@"terminal"] lowercaseString];
+    // Fall back to Terminal.app when "terminal" is missing or not a string. A nil terminalPref
+    // would otherwise match the first rangeOfString: check in openHost (Ghostty).
+    id terminalSetting = json[@"terminal"];
+    terminalPref = [terminalSetting isKindOfClass:[NSString class]] ? [terminalSetting lowercaseString] : @"terminal.app";
     editorPref = [json[@"editor"] lowercaseString];
     iTermVersionPref = [json[@"iTerm_version"] lowercaseString];
     openInPref = [json[@"open_in"] lowercaseString];
@@ -241,9 +248,12 @@
     //add hosts from the alternate json config
     if (parseAltJSON) {
         NSData *dataAlt = [NSData dataWithContentsOfFile:shuttleAltConfigFile];
-        id jsonAlt = [NSJSONSerialization JSONObjectWithData:dataAlt options:NSJSONReadingMutableContainers error:nil];
-        shuttleHostsAlt = jsonAlt[@"hosts"];
-        [shuttleHosts addObjectsFromArray:shuttleHostsAlt];
+        //~/.shuttle-alt.path may point to a file that no longer exists; skip it instead of crashing
+        if (dataAlt) {
+            id jsonAlt = [NSJSONSerialization JSONObjectWithData:dataAlt options:NSJSONReadingMutableContainers error:nil];
+            shuttleHostsAlt = jsonAlt[@"hosts"];
+            [shuttleHosts addObjectsFromArray:shuttleHostsAlt];
+        }
     }
     
     // Should we merge ssh config hosts?
@@ -667,7 +677,11 @@
     
     NSDictionary * appleScriptCreationError = nil;
     appleScript = [[NSAppleScript alloc] initWithContentsOfURL:pathURL error:&appleScriptCreationError];
-    
+    if (!appleScript) {
+        [self reportScriptError:appleScriptCreationError forScript:scriptPath];
+        return;
+    }
+
     if (handlerName && [handlerName length])
     {
         /* If we have a handlerName (and potentially parameters), we build
@@ -709,8 +723,39 @@
             [containerEvent setParamDescriptor:arguments forKeyword:keyDirectObject];
         }
         //Execute the event
-        [appleScript executeAppleEvent:containerEvent error:nil];
+        NSDictionary * appleScriptExecutionError = nil;
+        [appleScript executeAppleEvent:containerEvent error:&appleScriptExecutionError];
+        if (appleScriptExecutionError) {
+            [self reportScriptError:appleScriptExecutionError forScript:scriptPath];
+        }
     }
+}
+
+- (void) reportScriptError:(NSDictionary *)errorInfo forScript:(NSString *)scriptPath {
+    NSLog(@"Shuttle: AppleScript %@ failed: %@", [scriptPath lastPathComponent], errorInfo);
+
+    NSNumber *errorNumber = errorInfo[NSAppleScriptErrorNumber];
+    //-128 is "User canceled", nothing to report
+    if ([errorNumber integerValue] == -128) {
+        return;
+    }
+
+    //e.g. the terminal app is not installed where the script expects it, or Automation permission was denied (-1743)
+    NSString *details = errorInfo[NSAppleScriptErrorMessage];
+    if (!details) {
+        details = NSLocalizedString(@"Unknown AppleScript error",nil);
+    }
+    if (errorNumber) {
+        details = [NSString stringWithFormat:@"%@ (%@)", details, errorNumber];
+    }
+
+    NSAlert *alert = [[NSAlert alloc] init];
+    [alert setMessageText:NSLocalizedString(@"Shuttle could not run the command",nil)];
+    [alert setInformativeText:details];
+    [alert setAlertStyle:NSWarningAlertStyle];
+    //Shuttle is a menu bar app, so bring the alert to the front
+    [NSApp activateIgnoringOtherApps:YES];
+    [alert runModal];
 }
 
 - (IBAction)showImportPanel:(id)sender {
